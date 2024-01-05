@@ -12,9 +12,20 @@ public with sharing class DuplicateController {
   // Query String 저장공간
   public static Map<String, String> queryStrMap = new Map<String, String>();
 
+  // 결과 저장
+  public static List<SObject> resultList = new List<SObject>();
+
+  // ------ Result Class -----
+  public class resClass {
+    String name;
+    String phone;
+    String ownerId;
+  }
+
   // ------ Method ------
 
   // Get Specific FieldSet regarding to Obj
+  @AuraEnabled(cacheable=true)
   public static Map<String, List<String>> getFieldSet() {
     // Get FieldSet
     // Map을 For문으로 돌려서 대입하기 -> String은 Method에 적용이 안되낭?
@@ -46,6 +57,7 @@ public with sharing class DuplicateController {
   }
 
   // Create Query String - Obj별 Phone 기준 Duplicate 식별
+  @AuraEnabled(cacheable=true)
   public static Map<String, String> createQueryStr(String searchTerm) {
     // Field Set 얻어오기
     getFieldSet();
@@ -72,7 +84,8 @@ public with sharing class DuplicateController {
   }
 
   // Execute Query
-  public static List<SObject> getQueryResult() {
+  @AuraEnabled(cacheable=true)
+  public static List<resClass> getQueryResult() {
     getFieldSet();
     createQueryStr('01096522480');
 
@@ -82,12 +95,34 @@ public with sharing class DuplicateController {
     List<Lead> leadList = Database.query(queryStrMap.get('Lead'));
 
     // Save Result
-    List<SObject> resultList = new List<SObject>();
     resultList.addAll(acctList);
     resultList.addAll(contList);
     resultList.addAll(leadList);
-    System.debug(resultList);
 
-    return resultList;
+    // Map to Wrapper Class
+    List<resClass> result = new List<resClass>();
+    for (Account acct : acctList) {
+      resClass rc = new resClass();
+      rc.name = acct.Name;
+      rc.phone = acct.Phone;
+      rc.ownerId = acct.OwnerId;
+      result.add(rc);
+    }
+    for (Contact cont : contList) {
+      resClass rc = new resClass();
+      rc.name = cont.Account.Name;
+      rc.phone = cont.MobilePhone;
+      rc.ownerId = cont.OwnerId;
+      result.add(rc);
+    }
+    for (Lead lead : leadList) {
+      resClass rc = new resClass();
+      rc.name = lead.Company;
+      rc.phone = lead.Phone;
+      rc.ownerId = lead.OwnerId;
+      result.add(rc);
+    }
+    System.debug(result);
+    return result;
   }
 }

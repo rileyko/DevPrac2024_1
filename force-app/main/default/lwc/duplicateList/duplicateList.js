@@ -2,78 +2,36 @@
  * @description       :
  * @author            : Woolim Ko
  * @group             : Trestle
- * @last modified on  : 01-03-2024
+ * @last modified on  : 01-05-2024
  * @last modified by  : Woolim Ko
  **/
-import { LightningElement } from "lwc";
+import { LightningElement, api } from "lwc";
+import getQueryResult from "@salesforce/apex/DuplicateController.getQueryResult";
 import { loadStyle, loadScript } from "lightning/platformResourceLoader";
 
 import TABULATOR from "@salesforce/resourceUrl/TabulatorFile";
 
 const tabledata = [
   {
-    id: 1,
-    name: "Oli Bob",
-    progress: 12,
-    gender: "male",
-    rating: 1,
-    col: "red",
-    dob: "19/02/1984",
-    car: 1
+    Name: "Woolim Sample1",
+    Phone: "01096522480",
+    OwnerId: "005Ho00000AzxAIIAZ"
   },
   {
-    id: 2,
-    name: "Mary May",
-    progress: 1,
-    gender: "female",
-    rating: 2,
-    col: "blue",
-    dob: "14/05/1982",
-    car: true
+    Name: "Woolim Sample2",
+    Phone: "01096522480",
+    OwnerId: "005Ho00000AzxAIIAZ"
   },
   {
-    id: 3,
-    name: "Christine Lobowski",
-    progress: 42,
-    gender: "female",
-    rating: 0,
-    col: "green",
-    dob: "22/05/1982",
-    car: "true"
-  },
-  {
-    id: 4,
-    name: "Brendon Philips",
-    progress: 100,
-    gender: "male",
-    rating: 1,
-    col: "orange",
-    dob: "01/08/1980"
-  },
-  {
-    id: 5,
-    name: "Margret Marmajuke",
-    progress: 16,
-    gender: "female",
-    rating: 5,
-    col: "yellow",
-    dob: "31/01/1999"
-  },
-  {
-    id: 6,
-    name: "Frank Harbours",
-    progress: 38,
-    gender: "male",
-    rating: 10,
-    col: "red",
-    dob: "12/05/1966",
-    car: 1
+    Name: "Woolim Sample3",
+    Phone: "01096522480",
+    OwnerId: "005Ho00000AzxAIIAZ"
   }
 ];
 
 export default class duplicatList extends LightningElement {
   /* --------------------------------------------------------------------------------------------------------
-     * Flag
+    * Flag
     -------------------------------------------------------------------------------------------------------- */
   /**
    * Flag whether tabulator initialized
@@ -84,13 +42,21 @@ export default class duplicatList extends LightningElement {
   tabulatorInitialized = false;
 
   /* --------------------------------------------------------------------------------------------------------
-     * Attribute
-    -------------------------------------------------------------------------------------------------------- */
+   * Attribute
+   -------------------------------------------------------------------------------------------------------- */
+  @api recordId;
   table;
+  tabulatorData;
 
   /* --------------------------------------------------------------------------------------------------------
      * Lifecycle
     -------------------------------------------------------------------------------------------------------- */
+  connectedCallback() {
+    console.log("connected===============");
+    this.getQueryResult();
+    console.log(this.recordId + " is null");
+  }
+
   renderedCallback() {
     if (this.tabulatorInitialized) {
       return;
@@ -112,6 +78,12 @@ export default class duplicatList extends LightningElement {
   /* --------------------------------------------------------------------------------------------------------
      * Apex
     -------------------------------------------------------------------------------------------------------- */
+  getQueryResult() {
+    getQueryResult().then((result) => {
+      this.tabulatorData = result.resultList;
+      console.log(result.result);
+    });
+  }
 
   /* --------------------------------------------------------------------------------------------------------
      * Method
@@ -145,54 +117,22 @@ export default class duplicatList extends LightningElement {
         //define the table columns
         {
           title: "Name",
-          field: "name",
-          editor: "input",
-          cellEditing: (cell) => {
-            this.cellEditing(cell);
-          },
-          cellEdited: (cell) => {
-            this.cellEdited(cell);
-          }
+          field: "Name"
         },
         {
-          title: "Task Progress",
-          field: "progress",
-          hozAlign: "left",
-          formatter: "progress",
-          editor: "progress"
+          title: "Phone",
+          field: "Phone"
         },
         {
-          title: "Gender",
-          field: "gender",
-          width: 95,
-          editor: "select",
-          editorParams: { values: ["male", "female"] }
-        },
-        {
-          title: "Rating",
-          field: "rating",
-          hozAlign: "center",
-          formatter: "star",
-          editor: "star"
-        },
-        { title: "Color", field: "col", width: 130, editor: "input" },
-        {
-          title: "Date Of Birth",
-          field: "dob",
-          width: 130,
-          sorter: "date",
-          hozAlign: "center",
-          editor: "date"
-        },
-        {
-          title: "Driver",
-          field: "car",
-          width: 90,
-          hozAlign: "center",
-          formatter: "tickCross",
-          sorter: "boolean",
-          editor: true
+          title: "Owner",
+          field: "OwnerId"
         }
+        //{
+        //  title: "Onwer",
+        //  field: "Onwer.Name",
+        //  editor: "select",
+        //  editorParams: { values: ["male", "female"] }
+        //}
       ]
     });
   }
