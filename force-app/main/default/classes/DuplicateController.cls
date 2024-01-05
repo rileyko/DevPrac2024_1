@@ -1,30 +1,93 @@
 public with sharing class DuplicateController {
-  public static Map<String, List<String>> getFields() {
-    // Field Set Map
-    Map<String, List<Schema.FieldSetMember>> fieldSetMap = new Map<String, List<Schema.FieldSetMember>>();
+  // Object별 FieldSet 저장공간 -> 추후 Custom Metadata로 처리
+  public static Map<String, String> objFieldSetMap = new Map<String, String>{
+    'Account' => 'AcctInfo',
+    'Contact' => 'ContInfo',
+    'Lead' => 'LeadInfo'
+  };
 
-    // Get Field Set Value
-    List<Schema.FieldSetMember> acctInfo = SObjectType.Account.FieldSets.AcctInfo.getFields();
-    List<Schema.FieldSetMember> contInfo = SObjectType.Contact.FieldSets.ContInfo.getFields();
-    List<Schema.FieldSetMember> leadInfo = SObjectType.Lead.FieldSets.LeadInfo.getFields();
+  // FieldSet의 Field 저장공간
+  public static Map<String, List<String>> objFieldsMap = new Map<String, List<String>>();
 
-    // Put Map Value
-    fieldSetMap.put('Account', acctInfo);
-    fieldSetMap.put('Contact', contInfo);
-    fieldSetMap.put('Lead', leadInfo);
+  // Query String 저장공간
+  public static Map<String, String> queryStrMap = new Map<String, String>();
 
-    // Set Obj & FieldSet Cols
-    Map<String, List<String>> fieldListMap = new Map<String, List<String>>();
-    List<String> objList = new List<String>(fieldSetMap.keySet());
+  // ------ Method ------
 
-    for (String obj : objList) {
+  // Get Specific FieldSet regarding to Obj
+  public static Map<String, List<String>> getFieldSet() {
+    // Get FieldSet
+    // Map을 For문으로 돌려서 대입하기 -> String은 Method에 적용이 안되낭?
+    Schema.FieldSet acctFieldSet = Schema.SObjectType.Account.fieldSets.getMap()
+      .get(objFieldSetMap.get('Account'));
+    Schema.FieldSet contFieldSet = Schema.SObjectType.Contact.fieldSets.getMap()
+      .get(objFieldSetMap.get('Contact'));
+    Schema.FieldSet leadFieldSet = Schema.SObjectType.Lead.fieldSets.getMap()
+      .get(objFieldSetMap.get('Lead'));
+
+    // Get FieldSetMember
+    Map<String, List<Schema.FieldSetMember>> FieldSetMembs = new Map<String, List<Schema.FieldSetMember>>();
+    List<Schema.FieldSetMember> acctFieldSetMemb = acctFieldSet.getFields();
+    List<Schema.FieldSetMember> contFieldSetMemb = contFieldSet.getFields();
+    List<Schema.FieldSetMember> leadFieldSetMemb = leadFieldSet.getFields();
+    FieldSetMembs.put('Account', acctFieldSetMemb);
+    FieldSetMembs.put('Contact', contFieldSetMemb);
+    FieldSetMembs.put('Lead', leadFieldSetMemb);
+
+    // Get Fields & Add to Map
+    for (String obj : FieldSetMembs.keySet()) {
       List<String> fields = new List<String>();
-      for (Schema.FieldSetMember fieldList : fieldSetMap.get(obj)) {
-        fields.add(fieldList.getFieldPath());
+      for (Schema.FieldSetMember membs : FieldSetMembs.get(obj)) {
+        fields.add(membs.fieldpath);
       }
-      fieldListMap.put(obj, fields);
+      objFieldsMap.put(obj, fields);
     }
-    System.debug(fieldListMap);
-    return fieldListMap;
+    return objFieldsMap;
+  }
+
+  // Create Query String - Obj별 Phone 기준 Duplicate 식별
+  public static Map<String, String> createQueryStr(String searchTerm) {
+    // Field Set 얻어오기
+    getFieldSet();
+
+    // Each Object
+
+    for (String obj : objFieldsMap.keySet()) {
+      String queryStr = 'SELECT ';
+      String whereStr = ' WHERE ';
+      for (String field : objFieldsMap.get(obj)) {
+        queryStr += field + ', ';
+      }
+      // select ~ from
+      queryStr += 'Id ';
+      queryStr += 'FROM ';
+      queryStr += obj;
+      // where ~
+      whereStr += objFieldsMap.get(obj)[1];
+      whereStr += ' = ';
+      whereStr += '\'' + searchTerm + '\'';
+      queryStrMap.put(obj, queryStr + whereStr);
+    }
+    return queryStrMap;
+  }
+
+  // Execute Query
+  public static List<SObject> getQueryResult() {
+    getFieldSet();
+    createQueryStr('01096522480');
+
+    // Execute Query
+    List<Account> acctList = Database.query(queryStrMap.get('Account'));
+    List<Contact> contList = Database.query(queryStrMap.get('Contact'));
+    List<Lead> leadList = Database.query(queryStrMap.get('Lead'));
+
+    // Save Result
+    List<SObject> resultList = new List<SObject>();
+    resultList.addAll(acctList);
+    resultList.addAll(contList);
+    resultList.addAll(leadList);
+    System.debug(resultList);
+
+    return resultList;
   }
 }
