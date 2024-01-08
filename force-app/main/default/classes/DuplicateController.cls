@@ -17,9 +17,12 @@ public with sharing class DuplicateController {
 
   // ------ Result Class -----
   public class resClass {
-    String name;
-    String phone;
-    String ownerId;
+    @AuraEnabled
+    public String name;
+    @AuraEnabled
+    public String phone;
+    @AuraEnabled
+    public String ownerId;
   }
 
   // ------ Method ------
@@ -63,7 +66,6 @@ public with sharing class DuplicateController {
     getFieldSet();
 
     // Each Object
-
     for (String obj : objFieldsMap.keySet()) {
       String queryStr = 'SELECT ';
       String whereStr = ' WHERE ';
