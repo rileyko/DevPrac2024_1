@@ -85,10 +85,6 @@ export default class duplicatList extends LightningElement {
   })
   currentRec;
 
-  get currentPhone() {
-    return getFieldValue(this.currentRec.data, this.phoneField);
-  }
-
   async init() {
     try {
       this.isLoading = true;
@@ -133,6 +129,13 @@ export default class duplicatList extends LightningElement {
       movableColumns: true, //allow column order to be changed
       initialSort: [{ column: "name", dir: "asc" }]
     });
+  }
+
+  /* --------------------------------------------------------------------------------------------------------
+* Getter & Setter
+-------------------------------------------------------------------------------------------------------- */
+  get currentPhone() {
+    return getFieldValue(this.currentRec.data, this.phoneField);
   }
 
   /* --------------------------------------------------------------------------------------------------------
