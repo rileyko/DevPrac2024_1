@@ -5,15 +5,8 @@ public with sharing class DuplicateController {
     'Contact' => 'ContInfo',
     'Lead' => 'LeadInfo'
   };
-
-  // FieldSet의 Field 저장공간
-  public static Map<String, List<String>> objFieldsMap = new Map<String, List<String>>();
-
-  // Query String 저장공간
-  public static Map<String, String> queryStrMap = new Map<String, String>();
-
-  // 결과 저장
-  public static List<SObject> resultList = new List<SObject>();
+  public static Map<String, List<String>> objFieldsMap = new Map<String, List<String>>(); // FieldSet의 Field 저장공간
+  public static Map<String, String> queryStrMap = new Map<String, String>(); // Query String 저장공간
 
   // ------ Result Class -----
   public class resClass {
@@ -22,16 +15,15 @@ public with sharing class DuplicateController {
     @AuraEnabled
     public String phone;
     @AuraEnabled
-    public String ownerId;
+    public String ownername;
   }
 
   // ------ Method ------
-
   // Get Specific FieldSet regarding to Obj
   @AuraEnabled(cacheable=true)
   public static Map<String, List<String>> getFieldSet() {
     // Get FieldSet
-    // Map을 For문으로 돌려서 대입하기 -> String은 Method에 적용이 안되낭?
+    // Map을 For문으로 돌려서 대입하기 -> String은 Method에 적용이 안되낭? // Glob
     Schema.FieldSet acctFieldSet = Schema.SObjectType.Account.fieldSets.getMap()
       .get(objFieldSetMap.get('Account'));
     Schema.FieldSet contFieldSet = Schema.SObjectType.Contact.fieldSets.getMap()
@@ -61,7 +53,7 @@ public with sharing class DuplicateController {
 
   // Create Query String - Obj별 Phone 기준 Duplicate 식별
   @AuraEnabled(cacheable=true)
-  public static Map<String, String> createQueryStr(String searchTerm) {
+  public static Map<String, String> createQueryStr(String phoneNum) {
     // Field Set 얻어오기
     getFieldSet();
 
@@ -79,49 +71,45 @@ public with sharing class DuplicateController {
       // where ~
       whereStr += objFieldsMap.get(obj)[1];
       whereStr += ' = ';
-      whereStr += '\'' + searchTerm + '\'';
+      whereStr += '\'' + phoneNum + '\'';
       queryStrMap.put(obj, queryStr + whereStr);
     }
+    System.debug(queryStrMap);
     return queryStrMap;
   }
 
   // Execute Query
-  @AuraEnabled(cacheable=true)
-  public static List<resClass> getQueryResult() {
+  @AuraEnabled
+  public static List<resClass> getQueryResult(String phoneNum) {
     getFieldSet();
-    createQueryStr('01096522480');
+    createQueryStr(phoneNum);
 
     // Execute Query
     List<Account> acctList = Database.query(queryStrMap.get('Account'));
     List<Contact> contList = Database.query(queryStrMap.get('Contact'));
     List<Lead> leadList = Database.query(queryStrMap.get('Lead'));
 
-    // Save Result
-    resultList.addAll(acctList);
-    resultList.addAll(contList);
-    resultList.addAll(leadList);
-
-    // Map to Wrapper Class
+    // Map to Wrapper Class -> Mapping 용 Custom Metadata***
     List<resClass> result = new List<resClass>();
     for (Account acct : acctList) {
       resClass rc = new resClass();
       rc.name = acct.Name;
       rc.phone = acct.Phone;
-      rc.ownerId = acct.OwnerId;
+      rc.ownername = acct.Owner.Name;
       result.add(rc);
     }
     for (Contact cont : contList) {
       resClass rc = new resClass();
       rc.name = cont.Account.Name;
       rc.phone = cont.MobilePhone;
-      rc.ownerId = cont.OwnerId;
+      rc.ownername = cont.Owner.Name;
       result.add(rc);
     }
     for (Lead lead : leadList) {
       resClass rc = new resClass();
       rc.name = lead.Company;
       rc.phone = lead.Phone;
-      rc.ownerId = lead.OwnerId;
+      rc.ownername = lead.Owner.Name;
       result.add(rc);
     }
     System.debug(result);

@@ -2,36 +2,23 @@
  * @description       :
  * @author            : Woolim Ko
  * @group             : Trestle
- * @last modified on  : 01-08-2024
+ * @last modified on  : 01-09-2024
  * @last modified by  : Woolim Ko
  **/
-import { LightningElement, api } from "lwc";
-import getQueryResult1 from "@salesforce/apex/DuplicateController.getQueryResult";
+import { LightningElement, api, wire } from "lwc";
+import getTableData from "@salesforce/apex/DuplicateController.getQueryResult";
 import { loadStyle, loadScript } from "lightning/platformResourceLoader";
 import TABULATOR from "@salesforce/resourceUrl/TabulatorFile";
+import { getRecord, getFieldValue } from "lightning/uiRecordApi";
+import ACCT_FIELD from "@salesforce/schema/Account.Phone";
+import CONT_FIELD from "@salesforce/schema/Contact.MobilePhone";
+import LEAD_FIELD from "@salesforce/schema/Lead.Phone";
 
-//const tabledata = [
-//  {
-//    name: "Woolim Sample1",
-//    phone: "01096522480",
-//    ownerId: "005Ho00000AzxAIIAZ"
-//  },
-//  {
-//    name: "Woolim Sample2",
-//    phone: "01096522480",
-//    ownerId: "005Ho00000AzxAIIAZ"
-//  },
-//  {
-//    name: "Woolim Sample3",
-//    phone: "01096522480",
-//    ownerId: "005Ho00000AzxAIIAZ"
-//  }
-//];
-
+const fields = { Account: ACCT_FIELD, Contact: CONT_FIELD, Lead: LEAD_FIELD };
 export default class duplicatList extends LightningElement {
   cols = [
     {
-      title: "이름",
+      title: "회사명",
       field: "name"
     },
     {
@@ -39,10 +26,11 @@ export default class duplicatList extends LightningElement {
       field: "phone"
     },
     {
-      title: "담당 세일즈",
-      field: "ownerId"
+      title: "담당 영업",
+      field: "ownername"
     }
   ];
+
   /* --------------------------------------------------------------------------------------------------------
     * Flag
     -------------------------------------------------------------------------------------------------------- */
@@ -58,45 +46,62 @@ export default class duplicatList extends LightningElement {
    * Attribute
    -------------------------------------------------------------------------------------------------------- */
   @api recordId;
+  @api objectApiName;
   table;
-  test;
+  data;
+  isLoading = false;
+  phoneField;
 
   /* --------------------------------------------------------------------------------------------------------
      * Lifecycle
     -------------------------------------------------------------------------------------------------------- */
   connectedCallback() {
-    console.log("connected===============");
-    console.log(this.recordId);
+    this.phoneField = fields[this.objectApiName];
   }
 
   renderedCallback() {
     console.log("rendered===============");
+    if (this.tabulatorInitialized) {
+      return;
+    }
     this.tabulatorInitialized = true;
-
-    Promise.all([
-      loadScript(this, TABULATOR + "/tabulator-master/dist/js/tabulator.js"),
-      loadStyle(this, TABULATOR + "/tabulator-master/dist/css/tabulator.css")
-    ])
-      .then(() => {
-        this.getQueryResult();
-      })
-      .catch((error) => {
-        console.error(error);
-      });
+    this.init();
   }
 
   /* --------------------------------------------------------------------------------------------------------
-     * Apex
-    -------------------------------------------------------------------------------------------------------- */
+* Apex
+-------------------------------------------------------------------------------------------------------- */
 
   async getQueryResult() {
-    this.test = await getQueryResult1();
-    this.initializeTabulator();
+    this.data = await getTableData({ phoneNum: this.currentPhone });
   }
 
   /* --------------------------------------------------------------------------------------------------------
-     * Method
-    -------------------------------------------------------------------------------------------------------- */
+* Method
+-------------------------------------------------------------------------------------------------------- */
+  @wire(getRecord, {
+    recordId: "$recordId",
+    fields: "$phoneField"
+  })
+  currentRec;
+
+  get currentPhone() {
+    return getFieldValue(this.currentRec.data, this.phoneField);
+  }
+
+  async init() {
+    try {
+      this.isLoading = true;
+      await this.loadTabulator();
+      await this.getQueryResult();
+      this.initiateTable();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   /**
    * Initialize tabulator component
    * @memberof TabulatorExample
@@ -104,24 +109,29 @@ export default class duplicatList extends LightningElement {
    *
    * @example
    */
-  initializeTabulator() {
+  async loadTabulator() {
+    try {
+      await Promise.all([
+        loadScript(this, TABULATOR + "/tabulator-master/dist/js/tabulator.js"),
+        loadStyle(this, TABULATOR + "/tabulator-master/dist/css/tabulator.css")
+      ]);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  initiateTable() {
     // eslint-disable-next-line no-undef
     this.table = new Tabulator(this.template.querySelector("div.tabulator"), {
-      //  data: tabledata, //load row data from array
-      data: this.test, //load row data from array
-      layout: "fitColumns", //fit columns to width of table
-      //  placeholder: "No Data Available",
-      //  responsiveLayout: "hide", //hide columns that dont fit on the table
-      //  tooltips: true, //show tool tips on cells
-      //  addRowPos: "top", //when adding a new row, add it to the top of the table
-      //  history: true, //allow undo and redo actions on the table
-      //  pagination: "local", //paginate the data
-      //  paginationSize: 7, //allow 7 rows per page of data
-      //  paginationCounter: "rows", //display count of paginated rows in footer
-      //  movableColumns: true, //allow column order to be changed
-
-      //  initialSort: [{ column: "name", dir: "asc" }],
-      columns: this.cols
+      data: this.data,
+      columns: this.cols,
+      layout: "fitColumns",
+      placeholder: "No Duplication Record",
+      responsiveLayout: "hide", //hide columns that dont fit on the table
+      pagination: "local", //paginate the data
+      paginationSize: 7, //allow 7 rows per page of data
+      paginationCounter: "rows", //display count of paginated rows in footer
+      movableColumns: true, //allow column order to be changed
+      initialSort: [{ column: "name", dir: "asc" }]
     });
   }
 
